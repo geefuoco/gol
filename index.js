@@ -13,13 +13,33 @@ let state = make2dArray(COLS, ROWS)
 let running = false
 let animationFrameId = null
 let stopPlaying = false
+let currentCell = null
+let painted = false
 
 context.strokeStyle = "#FFF"
 context.lineWidth = 1
-// Randomly Initialize the starting state
-// TODO make user be able to click cell to turn it on or off
 fillRandomly(state)
 const INIT_STATE = copyState(state)
+
+function getCell(event) { 
+    const rect = canvas.getBoundingClientRect()
+    // get the coresponding square from the coordinates
+    const coords = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+    }
+    const row = Math.floor(Math.floor(coords.y) / CELL_SIZE)
+    const col = Math.floor(Math.floor(coords.x) / CELL_SIZE)
+    return {x: col, y: row}
+}
+
+function paintSquare(col, row, color) {
+    const x = col * CELL_SIZE
+    const y = row * CELL_SIZE
+    context.fillStyle = color
+    context.strokeRect(x, y, CELL_SIZE, CELL_SIZE)
+    context.fillRect(x, y, CELL_SIZE, CELL_SIZE)
+}
 
 function drawState(state) {
     for (let i=0; i < state.length; i++) {
@@ -113,31 +133,35 @@ function stepThroughGame(state) {
     return newState
 }
 
-function playGame(state) {
+function playGame() {
     if (stopPlaying) {
         return
     }
     drawState(state)
-    const newState = updateState(state)
+    state = updateState(state)
     setTimeout(function() {
-        requestAnimationFrame(() => playGame(newState))
+        requestAnimationFrame(() => playGame())
     }, SPEED)
 }
 
-function handleToggleStart() {
-    if (!running) {
-        running = true
-        stopPlaying = false
-        console.log("starting game")
-        animationFrameId = requestAnimationFrame(() => playGame(state))
-    } else {
-        console.log("stopping game")
-        if(animationFrameId) {
-            cancelAnimationFrame(animationFrameId)
-        }
-        stopPlaying = true
-        running = false
+function stopGame() {
+    console.log("stopping game")
+    if(animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
     }
+    stopPlaying = true
+    running = false
+}
+
+function startGame() {
+    running = true
+    stopPlaying = false
+    console.log("starting game")
+    animationFrameId = requestAnimationFrame(() => playGame())
+}
+
+function handleToggleStart() {
+    running ? stopGame() : startGame()
 }
 
 button.addEventListener("click", handleToggleStart)
@@ -145,10 +169,39 @@ stepButton.addEventListener("click", function() {
     console.log("stepping through game")
     state = stepThroughGame(state)
 })
+
 resetButton.addEventListener("click", function() {
+    if (running) {
+        stopGame()
+    }
     console.log("resetting to initial state")
     state = INIT_STATE
     drawState(state)
 })
+
+canvas.addEventListener("mousemove", function(event) {
+    const cell = getCell(event)
+    if (currentCell && cell.x === currentCell.x && cell.y === currentCell.y) {
+        return
+    }
+    if (currentCell && !painted && (currentCell.x !== cell.x || currentCell.y !== cell.y)) {
+        const color = state[currentCell.y][currentCell.x] == 1 ? "white" : "black"
+        paintSquare(currentCell.x, currentCell.y, color)
+    }
+    painted = false
+    paintSquare(cell.x, cell.y, "#1d1d1d")
+    if( cell.y < state.length && cell.x < state[0].length) {
+        currentCell = cell
+    }
+})
+
+canvas.addEventListener("click", function(event) {
+    const cell = getCell(event)
+    const color = state[cell.y][cell.x] == 0 ? "white" : "black"
+    state[currentCell.y][currentCell.x] = !(state[currentCell.y][currentCell.x] && 1)
+    paintSquare(cell.x, cell.y, color)
+    painted = true
+})
+
 
 drawState(state)
