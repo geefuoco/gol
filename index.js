@@ -161,7 +161,13 @@ function startGame() {
 }
 
 function handleToggleStart() {
-    running ? stopGame() : startGame()
+    if (running) {
+        stopGame()
+        button.textContent = "Play"
+    } else {
+        button.textContent = "Pause"
+        startGame()
+    }
 }
 
 button.addEventListener("click", handleToggleStart)
